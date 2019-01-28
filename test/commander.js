@@ -7,146 +7,134 @@ const Commander = require('../index').Commander;
 const lab = exports.lab = Lab.script();
 let commander;
 
-const host = process.env['RETHINKDB_2.3.4_PORT_28015_TCP_ADDR'] || 'localhost';
+const host = process.env['RETHINKDB_TCP_ADDR'] || 'localhost';
 
 lab.experiment('Commander', () => {
 
-    lab.beforeEach( (done) => {
-
-        commander = new Commander();
-        done();
-    });
-
-    lab.test('connect', (done) => {
-
-        commander.on('connect', (msg) => {
-
-            expect(msg).to.match(/Connected to/);
-            done();
+    lab.beforeEach( () => {
+        return new Promise(resolve => {
+            commander = new Commander();
+            resolve();
         });
-        commander.connect({ host: host, db: 'test' });
     });
 
-    lab.test('does not connect', (done) => {
+    lab.test('connect', () => {
+        return new Promise(resolve => {
+            commander.on('connect', (msg) => {
 
-        commander.connect = function () {
+                expect(msg).to.match(/Connected to/);
+                resolve();
+            });
 
-            this.emit('error', 'mocking this');
-        };
-
-        commander.close = () => {};
-
-        commander.on('error', (msg) => {
-
-            expect(msg).to.match(/mocking this/);
-            done();
+            commander.connect({ host: host, db: 'test' });
         });
-
-        commander.connect({ host: host, db: 'test' });
     });
 
-    lab.test('it has status \'not connected\'', (done) => {
+    lab.test('does not connect', () => {
+        return new Promise(resolve => {
+            commander.connect = function () {
 
+                this.emit('error', 'mocking this');
+            };
+
+            commander.close = () => {};
+
+            commander.on('error', (msg) => {
+                expect(msg).to.match(/mocking this/);
+                resolve();
+            });
+
+            commander.connect({ host: host, db: 'test' });
+        });
+    });
+
+    lab.test('it has status \'not connected\'', () => {
         commander.conn = null;
         expect(commander.status()).to.equal('Not connected');
-        done();
     });
 
-    lab.test('it has status connected', (done) => {
+    lab.test('it has status connected', () => {
+        return new Promise(resolve => {
+            commander.on('connect', () => {
+                expect(commander.status()).to.equal(`${host}:28015/test`);
+                resolve();
+            });
 
-        commander.on('connect', () => {
-
-            expect(commander.status()).to.equal(`${host}:28015/test`);
-            done();
+            commander.connect({ host: host, db: 'test' });
         });
-        commander.connect({ host: host, db: 'test' });
     });
 
-    lab.test('execString', (done) => {
+    lab.test('execString', () => {
+        return new Promise(resolve => {
+            commander.on('message', (list) => {
+                expect(list).to.be.string();
+                resolve();
+            });
 
-        commander.on('message', (list) => {
+            commander.on('connect', (msg) => {
+                commander.execString('tableList');
+            });
 
-            expect(list).to.be.string();
-            done();
+            commander.connect({ host: host, db: 'test' });
         });
-
-        commander.on('connect', (msg) => {
-
-            commander.execString('tableList');
-        });
-
-        commander.connect({ host: host, db: 'test' });
     });
 
-    lab.test('emit', (done) => {
-
+    lab.test('emit', () => {
         expect(commander.emit('bogus', 1,2,3)).to.be.undefined();
-        done();
     });
 
-    lab.test('exec', (done) => {
-
+    lab.test('exec', () => {
         expect(commander.exec('bogus', 1,2,3)).to.equal(commander);
-        done();
     });
 
-    lab.test('defaultResolver', (done) => {
-
+    lab.test('defaultResolver', () => {
         expect(commander.defaultResolver({ name: 'bogus' })).to.be.undefined();
-        done();
     });
 
-    lab.test('defaultRejecter', (done) => {
-
+    lab.test('defaultRejecter', () => {
         expect(commander.defaultRejecter({ name: 'bogus' })).to.be.undefined();
-        done();
     });
 
-    lab.test('close', (done) => {
-
-        commander.connect({ host: host, db: 'test' });
-        commander.on('connect', () => {
-
-            commander.close();
-            done();
+    lab.test('close', () => {
+        return new Promise(resolve => {
+            commander.connect({ host: host, db: 'test' });
+            commander.on('connect', () => {
+                commander.close();
+                resolve();
+            });
         });
     });
 
-    lab.test('quit', (done) => {
-
+    lab.test('quit', () => {
         commander.operations.quit.call(commander);
-        done();
     });
 
-    lab.test('use', (done) => {
+    lab.test('use', () => {
+        return new Promise(resolve => {
+            commander.on('message', (msg) => {
+                expect(msg).to.equal('Using test');
+                resolve();
+            });
 
-        commander.connect({ host: host, db: 'test' });
+            commander.on('connect', () => {
+                commander.operations.use.call(commander, 'test');
+            });
 
-        commander.on('message', (msg) => {
-
-            expect(msg).to.equal('Using test');
-            done();
-        });
-
-        commander.on('connect', () => {
-
-            commander.operations.use.call(commander, 'test');
+            commander.connect({ host: host, db: 'test' });
         });
     });
 
-    lab.test('help', (done) => {
-
+    lab.test('help', () => {
         commander.operations.help.call(commander);
-        done();
     });
 
-    lab.test('tableList', (done) => {
-
-        commander.on('connect', (msg) => {
-
-            expect(commander.operations.tableList.call(commander)).to.equal(commander);
-            done();
-        });
-        commander.connect({ host: host, db: 'bogus' });
+    lab.test('tableList', () => {
+        return new Promise(resolve => {
+            commander.on('connect', (msg) => {
+                expect(commander.operations.tableList.call(commander)).to.equal(commander);
+                resolve();
+            });
+            commander.connect({ host: host, db: 'bogus' });
+        })
     });
 });

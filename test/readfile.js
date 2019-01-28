@@ -9,7 +9,7 @@ const Fs = require('fs');
 
 lab.experiment('Readfile', () => {
 
-    lab.before( (done) => {
+    lab.before( () => {
 
         const data = JSON.stringify({
             people: {
@@ -18,33 +18,40 @@ lab.experiment('Readfile', () => {
             }
         }, null, 4);
 
-        Fs.writeFile('./fud.json', data, 'utf8', (err) => {
+        return new Promise((resolve, reject) => {
 
-            done(err);
+            Fs.writeFile('./fud.json', data, 'utf8', (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+
+        });
+
+    });
+
+    lab.after( () => {
+        return new Promise((resolve, reject) => {
+
+            Fs.unlink('./fud.json', err => {
+                if (err) reject(err);
+                else resolve();
+            });
+
         });
     });
 
-    lab.after( (done) => {
+    lab.test('it reads', () => {
 
-        Fs.unlink('./fud.json', done);
-    });
-
-    lab.test('it reads', (done) => {
-
-        Readfile('./fud.json').then( (data) => {
-
+        return Readfile('./fud.json').then( (data) => {
             expect(data.people.name).to.equal('John Doe');
             expect(data.people.age).to.equal(29);
-            done();
-        }, done);
+        });
     });
 
-    lab.test('it doesn\'t read when file is not present', (done) => {
+    lab.test('it doesn\'t read when file is not present', () => {
 
-        Readfile('./no-file.json').then( () => {}, (err) => {
-
+        return Readfile('./no-file.json').then( () => {}, (err) => {
             expect(err.code).to.equal('ENOENT');
-            done();
         });
     });
 });
