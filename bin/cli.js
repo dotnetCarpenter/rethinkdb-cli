@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 'use strict';
 
 const Assert = require('assert');
@@ -38,7 +40,6 @@ const Opts = [
 ];
 
 const Config = function (options) {
-
     return {
         db: options.db || 'test',
         host: options.host,
